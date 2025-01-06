@@ -1,0 +1,68 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from keras.models import Sequential
+from keras.layers import SimpleRNN, Dense
+
+# Parameters
+pitch = 20
+step = 1
+N = 100
+n_train = int(N * 0.7)  # 70% for training
+
+# Generate data
+t = np.arange(1, N + 1)
+y = np.sin(0.05 * t * 10) + 0.8 * np.random.rand(N)  # สร้างข้อมูล Sin ที่มี noise
+
+# Split data
+train, test = y[:n_train], y[n_train:]
+
+# Function to convert to matrix
+def convertToMatrix(data, step=1):
+    X, Y = [], []
+    for i in range(len(data) - step):
+        d = i + step
+        X.append(data[i:d])
+        Y.append(data[d])
+    return np.array(X), np.array(Y)
+
+x_train, y_train = convertToMatrix(train, step)
+x_test, y_test = convertToMatrix(test, step)
+
+# Reshape input data for RNN
+x_train = x_train.reshape((x_train.shape[0], x_train.shape[1], 1))
+x_test = x_test.reshape((x_test.shape[0], x_test.shape[1], 1))
+
+# Model creation
+model = Sequential()
+model.add(SimpleRNN(units=64, input_shape=(step, 1), activation="tanh"))  # เพิ่ม units และเปลี่ยนเป็น tanh
+model.add(Dense(units=1))
+
+# Compile model
+model.compile(optimizer="adam", loss="mse")
+hist = model.fit(x_train, y_train, epochs=50, batch_size=1, verbose=1)  # เพิ่ม epochs
+
+# Prediction
+y_pred = model.predict(x_test).flatten()
+
+# Combine train and predict for visualization
+y_full_pred = np.concatenate([train[step:], y_pred])
+
+# Plot: Compare Original vs Predict
+plt.figure(figsize=(10, 6))
+plt.plot(range(len(y)), y, label="Original", color="blue")  # ข้อมูลจริง
+plt.plot(range(step, len(y_full_pred) + step), y_full_pred, 'r--', label="Predict", color="red")  # ข้อมูล Predict
+plt.axvline(x=n_train, color="purple", linestyle="--", label="Train-Test Split")  # จุดแบ่ง Train-Test
+plt.legend()
+plt.title("Comparison: Original vs Predict")
+plt.xlabel("Index")
+plt.ylabel("Value")
+plt.show()
+
+# Plot: Training Loss
+plt.figure(figsize=(8, 4))
+plt.plot(hist.history['loss'], label='Training Loss')
+plt.title("Model Loss over Epochs")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
